@@ -49,7 +49,7 @@ def config(env=DEFAULT_ENV, default='locmem://'):
 def parse(url):
     """Parses a cache URL."""
     config = {}
-
+    import ipdb; ipdb.set_trace()
     url = urlparse.urlparse(url)
     # Update with environment configuration.
     config['BACKEND'] = CACHE_TYPES[url.scheme]
@@ -57,6 +57,9 @@ def parse(url):
         config['LOCATION'] = url.path
         return config
     elif url.scheme in ('redis', 'hiredis'):
+        database = None
+        prefix = None
+        password = None
         if url.netloc == 'unix':
             location_index = None
             bits = list(filter(None, url.path.split('/')))
@@ -82,14 +85,12 @@ def parse(url):
                         # or assume the rest is the prefix
                         database = 0
                         prefix = rest
-                else:
-                    database = prefix = None
 
-            full_location = (url.netloc, '/' + '/'.join(location))
-            if database is not None:
-                full_location += (str(database),)
-            config['LOCATION'] = ':'.join(full_location)
-            config['KEY_PREFIX'] = '/'.join(prefix)
+            config['LOCATION'] = '/' + '/'.join(location)
+            if prefix is not None:
+                config['KEY_PREFIX'] = '/'.join(prefix)
+            else:
+                config['KEY_PREFIX'] = ''
 
         else:
             try:
@@ -107,16 +108,12 @@ def parse(url):
             config['KEY_PREFIX'] = '/'.join(path[1:])
 
         redis_options = {}
-
         if url.scheme == 'hiredis':
             redis_options['PARSER_CLASS'] = 'redis.connection.HiredisParser'
-
-        try:
-            if password:
-                redis_options['PASSWORD'] = password
-        except NameError:  # No password defined
-            pass
-
+        if password is not None:
+            redis_options['PASSWORD'] = password
+        if database is not None:
+            redis_options['DB'] = database
         if redis_options:
             config['OPTIONS'] = redis_options
 
